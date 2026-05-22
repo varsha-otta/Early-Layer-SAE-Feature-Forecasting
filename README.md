@@ -30,15 +30,15 @@ Rationale: Gemma-2-2B forward passes don't fit comfortably in 8 GB system RAM, b
 
 ## Status
 
-**Step 1 of 7: environment setup + smoke test (current).**
+**Step 3 of 7: activation cache extraction (next).**
 
-| # | Step |
-|---|---|
-| 1 | Env + smoke test |
-| 2 | Target feature selection (Neuronpedia browse) |
-| 3 | Activation cache extraction (Colab) |
-| 4 | Probe training + per-feature evaluation |
-| 5 | Data-efficiency sweeps |
+| # | Step | Status |
+|---|---|---|
+| 1 | Env + smoke test | done |
+| 2 | Target feature selection (Neuronpedia browse) | done. Picks: `[9989, 817, 12730, 892, 1031]`; see `docs/02_feature_selection.md` |
+| 3 | Activation cache extraction (Colab) | next |
+| 4 | Probe training + per-feature evaluation | |
+| 5 | Data-efficiency sweeps | |
 | 6 | Generalization tests (web → safety prompts) |
 | 7 | Write-up |
 
@@ -47,15 +47,21 @@ Rationale: Gemma-2-2B forward passes don't fit comfortably in 8 GB system RAM, b
 ```
 .
 ├── README.md
-├── requirements.txt           # local probing deps (CPU-only)
+├── requirements.txt              # local probing deps (CPU-only)
 ├── .gitignore
+├── docs/
+│   └── 02_feature_selection.md   # Step 2 research record (queries, verification, decision)
 ├── notebooks/
-│   └── 01_smoke_test.ipynb    # Colab; verifies model + SAE + hooks pipeline
+│   └── 01_smoke_test.ipynb       # Colab; Step 1: model + SAE + hooks pipeline
 ├── scripts/
-│   └── check_local_env.py     # verifies local env imports
-├── src/                       # probe training + analysis (Steps 4–6, created later)
-├── data/                      # cached activation tensors (gitignored)
-└── results/                   # tables, plots, writeup
+│   ├── check_local_env.py        # verifies local env imports
+│   └── step2_neuronpedia_search.py  # Step 2: reproducible Neuronpedia search + verification
+├── src/                          # probe training + analysis (Steps 4–6, created later)
+├── data/                         # cached activations + search results (gitignored)
+│   ├── target_features.json      # committed picks → handoff to Step 3
+│   ├── neuronpedia_search_raw.json
+│   └── shortlist_v1.json
+└── results/                      # tables, plots, writeup
 ```
 
 ## Getting started
