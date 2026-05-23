@@ -15,10 +15,10 @@ Headline target claim:
 | | |
 |---|---|
 | Model | `google/gemma-2-2b` (base, 26 layers) |
-| SAEs | GemmaScope residual-stream, width 16k |
+| SAEs | GemmaScope residual-stream, width 16k, canonical |
 | Early layers | L_early ∈ {5, 8, 12} |
-| Late layers | L_late ∈ {18, 22} |
-| Target features | 3–5 safety-flavored SAE features, picked via Neuronpedia + manual verification |
+| Late layer | L_late = 20 (also cached as a same-layer upper-bound probe) |
+| Target features | 5 safety-flavored SAE features at layer 20, picked via Neuronpedia + manual verification (`data/target_features.json`) |
 | Probes | Linear (logistic regression) primary; 2-layer MLP as sanity check |
 
 ## Compute split
@@ -30,38 +30,42 @@ Rationale: Gemma-2-2B forward passes don't fit comfortably in 8 GB system RAM, b
 
 ## Status
 
-**Step 3 of 7: activation cache extraction (next).**
+**Step 4 of 7: probe training: next.** See `docs/implementation_plan.md` for the full per-step design.
 
 | # | Step | Status |
 |---|---|---|
 | 1 | Env + smoke test | done |
 | 2 | Target feature selection (Neuronpedia browse) | done. Picks: `[9989, 817, 12730, 892, 1031]`; see `docs/02_feature_selection.md` |
-| 3 | Activation cache extraction (Colab) | next |
-| 4 | Probe training + per-feature evaluation | |
-| 5 | Data-efficiency sweeps | |
-| 6 | Generalization tests (web → safety prompts) |
-| 7 | Write-up |
+| 3 | Activation cache extraction (Colab) | done. 102,400 tokens × 4 layers cached at `data/cache/v1/`; retrospective: `docs/03_activation_cache.md` |
+| 4 | Probe training + per-feature evaluation | next |
+| 5 | Data-efficiency sweeps | pending |
+| 6 | Generalization tests (web → safety prompts) | pending |
+| 7 | Write-up | pending |
 
 ## Layout
 
 ```
 .
 ├── README.md
-├── requirements.txt              # local probing deps (CPU-only)
+├── requirements.txt                  # local probing deps (CPU-only)
 ├── .gitignore
 ├── docs/
-│   └── 02_feature_selection.md   # Step 2 research record (queries, verification, decision)
+│   ├── implementation_plan.md        # living plan: per-step design + status
+│   └── 02_feature_selection.md       # Step 2 research record (queries, verification, decision)
 ├── notebooks/
-│   └── 01_smoke_test.ipynb       # Colab; Step 1: model + SAE + hooks pipeline
+│   ├── 01_smoke_test.ipynb           # Colab; Step 1: model + SAE + hooks pipeline
+│   └── 02_activation_cache.ipynb     # Colab; Step 3: ~1.89 GB activation cache
 ├── scripts/
-│   ├── check_local_env.py        # verifies local env imports
-│   └── step2_neuronpedia_search.py  # Step 2: reproducible Neuronpedia search + verification
-├── src/                          # probe training + analysis (Steps 4–6, created later)
-├── data/                         # cached activations + search results (gitignored)
-│   ├── target_features.json      # committed picks → handoff to Step 3
+│   ├── check_local_env.py            # verifies local env imports
+│   ├── check_activation_cache.py     # Step 3: verify downloaded cache locally
+│   └── step2_neuronpedia_search.py   # Step 2: reproducible Neuronpedia search + verification
+├── src/                              # probe training + analysis (Steps 4–6, created later)
+├── data/                             # cached activations + search results (gitignored)
+│   ├── target_features.json          # committed picks → handoff to Step 3
 │   ├── neuronpedia_search_raw.json
-│   └── shortlist_v1.json
-└── results/                      # tables, plots, writeup
+│   ├── shortlist_v1.json
+│   └── cache/v1/                     # Step 3 output, downloaded from Colab/Drive
+└── results/                          # tables, plots, writeup
 ```
 
 ## Getting started
@@ -86,3 +90,12 @@ python scripts/check_local_env.py
 If every cell completes and the final cell prints non-zero SAE feature activations per token, Step 1 is complete.
 
 **Backup if Colab's free GPU is unavailable**: same notebook runs on Kaggle (30 GPU-hours/week, T4 or P100).
+
+### 3. Colab activation cache (Step 3)
+
+1. Upload `notebooks/02_activation_cache.ipynb` to Colab (T4 GPU runtime).
+2. Run all cells. ~5 min after warm-up; writes ~1.89 GB to `safety-sae-cache/v1/` in your Drive.
+3. Download `safety-sae-cache/v1/` from Drive to `data/cache/v1/` in this repo.
+4. Verify locally: `python scripts/check_activation_cache.py`.
+
+Full step design (config, memory plan, risks): `docs/implementation_plan.md`.
