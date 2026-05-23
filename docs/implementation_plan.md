@@ -2,7 +2,7 @@
 
 Single living plan covering all seven steps in the README. Resumable: each step has a status, design notes, and pointers to its artifacts. Pick up from any "next" or "in progress" row.
 
-**Last updated:** 2026-05-23 (Step 3 done; cache verified locally; Step 4 next).
+**Last updated:** 2026-05-23 (Step 5 done; 820 efficiency-sweep probes run; Step 6 next).
 
 ## Research question
 
@@ -38,9 +38,9 @@ Three sub-questions, each owned by a later step:
 | 1 | Env + smoke test | done | `notebooks/01_smoke_test.ipynb` |
 | 2 | Target feature selection | done | `docs/02_feature_selection.md`, `data/target_features.json`, `scripts/step2_neuronpedia_search.py` |
 | 3 | Activation cache extraction (Colab) | done | `notebooks/02_activation_cache.ipynb`, `scripts/check_activation_cache.py`, `data/cache/v1/`, `docs/03_activation_cache.md` |
-| 4 | Probe training + per-feature evaluation | **next** | (planned) `src/probe.py`, `results/step4_probe_metrics.csv` |
-| 5 | Data-efficiency sweeps | pending | (planned) `src/data_efficiency.py`, `results/step5_efficiency_curves.csv` |
-| 6 | Generalization tests | pending | (planned) safety-prompts cache + `results/step6_generalization.csv` |
+| 4 | Probe training + per-feature evaluation | done | `src/{data,eval,probe}.py`, `scripts/step4_train_probes.py`, `results/step4_*`, `docs/04_probes.md` |
+| 5 | Data-efficiency sweeps | done | `src/data_efficiency.py`, `scripts/step5_{efficiency,analysis}.py`, `results/step5_*`, `docs/05_data_efficiency.md` |
+| 6 | Generalization tests | **next** | (planned) safety-prompts cache + `results/step6_generalization.csv` |
 | 7 | Write-up | pending | (planned) `docs/07_writeup.md` |
 
 Workflow: per the project's pause-per-step convention, each step is completed and reviewed before the next begins.
@@ -161,45 +161,135 @@ Safety-prompt corpus (Step 6), probe training code (Step 4), int8 quantization (
 
 ---
 
-## Step 4: Probe training + per-feature evaluation — PENDING
+## Step 4: Probe training + per-feature evaluation — DONE
 
-### Sketch (design will be locked in when Step 3 is done)
+40 probes trained and evaluated on 2026-05-23. Full retrospective: `docs/04_probes.md`.
 
-**Probe:** linear (logistic regression) primary, 2-layer MLP as sanity check (per README). One probe per (feature, layer) → 5 features × 4 layers = **20 probes**.
+### Resolved open questions
 
-**Label:** binary fire = `feature_acts > 0`. The SAE's own ReLU defines "fires"; no extra threshold.
+- **BOS masking:** yes. Position 0 of every sequence is dropped from train and test → 81,600 train / 20,400 test tokens.
+- **Shared sequence-level split:** yes. Seed 0 partitions the 400 sequences into 320 train / 80 test, shared across all 20 (feature, layer) probe configs so AUC numbers are directly commensurable.
 
-**Split:** 80/20 by **sequence index** (not token index) to avoid leaking adjacent-position information. Fixed seed.
+### Final locked-in config
 
-**Metrics:** AUC-ROC (primary), AUC-PR (because positives are rare: 0.28-0.76%), precision@k, calibration plot. Bootstrap CIs (100 resamples) on the test fold.
+| | value |
+|---|---|
+| Linear probe | sklearn `LogisticRegression`, lbfgs, `class_weight='balanced'`, max_iter=1000 |
+| MLP sanity | 2304→128→1 ReLU, dropout 0.1, BCEWithLogits + pos_weight, Adam 1e-3, 5 epochs, batch 512 |
+| Standardization | per-dim z-score, scaler fit on train fold only, applied in-place to free RAM |
+| L2 sweep | one representative sweep (feature 9989, layer 12) on C ∈ [1e-3, 1e-2, 1e-1, 1, 10], 3-fold CV. **Best C = 0.001** transferred to all 20 linear probes. |
+| Bootstrap | 200 stratified resamples (positives and negatives resampled independently, original counts preserved); 95% percentile CIs. |
+| Metrics | AUC-ROC, AUC-PR, precision@k with k = n_test_positives. (Calibration plot deferred to Step 7 with the other figures.) |
 
-**Regularization:** L2 strength swept on a held-out subset of the train fold.
+### Headline empirical results (linear AUC-ROC)
 
-**Implementation:** scikit-learn `LogisticRegression` for the linear probe; tiny PyTorch MLP for sanity. CPU-only; should be seconds per probe.
+| feature | L5 | L8 | L12 | L20 |
+|---|---|---|---|---|
+| 9989 refusal | 0.891 | 0.906 | 0.934 | **0.996** |
+| 817 deception | 0.893 | 0.924 | 0.938 | **0.997** |
+| 12730 ethics | 0.873 | 0.925 | 0.918 | **0.993** |
+| 892 sycophancy-adj | 0.936 | 0.972 | 0.987 | **0.998** |
+| 1031 harm | 0.978 | 0.978 | 0.983 | **0.997** |
 
-**Outputs:** `results/step4_probe_metrics.csv` (one row per (feature, layer, probe_type) with point + CI), `results/step4_probe_weights/` (one `.npz` per probe for later inspection).
+**Key takeaways:**
+- Linear precursor signal is decodable at layer 5 for every feature (AUC ≥ 0.87).
+- Layer 20 is essentially saturated (≥ 0.99 across the board) — that's the same-layer upper bound the SAE was trained against.
+- MLP never beats linear by more than CI noise; the signal is linearly decodable. The "linear probe is enough" sanity check passes.
+- Harm (1031) is shallowly encoded (AUC ≈ 0.98 already at L5); ethics (12730) is the weakest and most variable.
 
-### Open questions for Step 4 planning
+### Artifacts
 
-- Should BOS tokens be masked from train/eval? Leaning yes (cleaner).
-- Single shared train/test split across all probes, or per-feature splits? Leaning shared (simpler interpretation).
+- `src/__init__.py`, `src/data.py`, `src/eval.py`, `src/probe.py` — probe implementation
+- `scripts/step4_train_probes.py` — orchestrator with `--smoke`, `--skip-sweep`, `--C` flags
+- `results/step4_l2_sweep.csv` — 15-row CV sweep
+- `results/step4_probe_metrics.csv` — 40 rows: (5 features) × (4 layers) × (2 probe types)
+- `results/step4_meta.json` — split sequence IDs, best_C, per-layer wall times
+- `results/step4_probe_weights/{lin,mlp}_{idx}_L{layer}.npz` — 40 weight files for inspection
+- `results/step4_run.log` — full run log
+- `docs/04_probes.md` — retrospective with full empirical results and Step 5 caveats
 
-## Step 5: Data-efficiency sweeps — PENDING
+### Runtime
 
-### Sketch
+~27 min on the laptop (CPU). L2 sweep 8.5 min + 4 layers × ~5-8 min each.
 
-**N sweep:** log-spaced, ~8 points: `[500, 1k, 2k, 5k, 10k, 20k, 50k, 100k]`.
+### Out of scope for Step 4 (deferred)
 
-**For each (feature, layer, N):** subsample N from the train fold, train linear probe, evaluate on the (fixed) test fold. Repeat with 5 random subsamples for variance.
+- Calibration plot per probe → Step 7 figures.
+- Per-(feature, layer) hyperparameter tuning → not needed; AUC differences across the C grid were monotonic and the chosen C generalized.
 
-**Baseline:** GemmaScope's published SAE training data size (from the GemmaScope paper — to be looked up in Step 5; expected ~4B tokens). We report the ratio: `M_SAE / N_probe@AUC_target`.
+## Step 5: Data-efficiency sweeps — DONE
 
-**Output:** `results/step5_efficiency_curves.csv`, faceted plot per (feature, layer).
+820 probes (708 non-degenerate) trained and evaluated on 2026-05-23. Full retrospective: `docs/05_data_efficiency.md`.
 
-### Open questions
+### Resolved open questions
 
-- Do we re-train SAEs ourselves on subsets to validate the M_SAE number? Default: no (out of scope, too expensive). Cite published number.
-- What AUC threshold defines "the probe works"? Suggest 0.9 (refine after Step 4 results).
+- **N grid:** 9 sequence-counts, dense at low end: `[2, 4, 8, 16, 32, 64, 128, 256, 320]` → `[510, 1020, ..., 81600]` tokens.
+- **Threshold metric for headline:** **AUC-ROC ≥ 0.9.** Both ROC and PR were measured; PR=0.5 is too strict for the early-layer regime (only crossed at L20 for most features), so it's reported in the curves but does not earn a headline slot.
+- **Subsamples per N:** 5 (1 at N=320, deterministic).
+- **C constant:** held at 0.001 (Step 4's pick) across all probes.
+- **SAE retraining for ratio validation:** no, cite the published GemmaScope figure (~4B tokens).
+
+### Final locked-in config
+
+| | value |
+|---|---|
+| Probe | linear only (sklearn `LogisticRegression`, lbfgs, `class_weight='balanced'`, `C=0.001`) |
+| Subsample unit | **sequences** (not tokens) |
+| Z-score scaler | fit per subsample on its own rows (honest "with N tokens" claim) |
+| Test fold | fixed at Step 4's 80-sequence test fold |
+| Bootstrap | skipped; cross-subsample spread is the variance estimate |
+| Metrics | AUC-ROC, AUC-PR, p@k (point estimates) |
+
+### Headline empirical results
+
+**Smallest N (tokens) at which mean AUC-ROC crosses 0.9:**
+
+| feature | theme | L5 | L8 | L12 | L20 |
+|---|---|---|---|---|---|
+| 9989 | refusal | never | 49.5k | 21.1k | **3.1k** |
+| 817 | deception | never | 31.0k | 26.3k | **3.5k** |
+| 12730 | ethics | never | 18.3k | 26.9k | **6.4k** |
+| 892 | sycophancy-adj | 4.0k | ~0.9k\* | ~0.9k\* | **~0.9k\*** |
+| 1031 | harm | 3.8k | 2.6k | 2.4k | **1.8k** |
+
+\* interpolated from k=2 non-degenerate subsamples at N∈{2, 4}; flagged in retrospective.
+
+**Data-efficiency vs GemmaScope (4B tokens, Lieberum et al. 2024):**
+
+| feature | best-layer N (tokens) | M_SAE / N_probe |
+|---|---|---|
+| 9989 refusal | 3,139 | ~1.3M× |
+| 817 deception | 3,498 | ~1.1M× |
+| 12730 ethics | 6,356 | ~630k× |
+| 892 sycophancy-adj | ~860 | ~4.6M× |
+| 1031 harm | 1,812 | ~2.2M× |
+
+**Key takeaways:**
+- Once we know which 5 features matter, the precursor probe predicts them with ~10⁻⁶ of the SAE's training data.
+- The ratio is most striking but also most caveated: the SAE solves an unsupervised dictionary-learning task; the probe is labeled binary classification. The ratio is a token-budget headline, not an apples-to-apples claim.
+- Refusal, deception, ethics never cross ROC=0.9 at L5 in our 81.6k-token fold — the precursor decodability story has clear feature dependence.
+- Harm and sycophancy-adj are decodable from L5 with single-digit-thousand tokens. Harm at L5 reaches ROC=0.9 with 3,791 tokens.
+
+### Artifacts
+
+- `src/data_efficiency.py` — sequence-level subsample helper
+- `scripts/step5_efficiency.py` — full-sweep orchestrator (`--smoke`, `--layers` flags)
+- `scripts/step5_analysis.py` — aggregator + crossing extractor (mean N at AUC threshold via log-N interpolation)
+- `results/step5_efficiency_curves.csv` — 820 raw rows (one per probe fit)
+- `results/step5_efficiency_aggregate.csv` — 176 aggregate rows (mean/std/min/max across subsamples)
+- `results/step5_headline.csv` — 20 rows (full-N AUC + crossing N at ROC=0.9 and PR=0.5)
+- `results/step5_meta.json` — config, seeds, per-layer wall times
+- `docs/05_data_efficiency.md` — retrospective
+
+### Runtime
+
+~27 min wall (much faster than the 80-min pre-flight estimate). ~2.3 sec average per fit (0.1-23 sec range).
+
+### Out of scope for Step 5 (deferred)
+
+- Figures (faceted curves per feature × layer) → Step 7.
+- Re-tuning C per N → not pursued; curves were sensible at fixed C=0.001.
+- Retraining a small SAE for a direct M_SAE comparison → out of scope; cite published number.
 
 ## Step 6: Generalization tests — PENDING
 
@@ -210,6 +300,13 @@ Train probe on Pile-10k cache (Step 3), evaluate on a held-out safety-prompt dis
 **Safety-prompt corpus:** to decide. Candidates: AdvBench, HarmBench, a slice of Anthropic HH-RLHF (red-team subset), or a hand-curated set of refusal-flavored prompts. Will need ~10k-50k tokens. Built as a second activation cache (`data/cache/safety_v1/`) following the Step 3 pipeline.
 
 **Comparison:** in-distribution AUC (Pile test fold) vs out-of-distribution AUC (safety cache). Gap is the generalization story.
+
+### Step-5-informed caveats
+
+- **Use Step 4 weights, not Step 5 weights, as the OOD probe.** Step 5 probes are weaker artifacts intended for the efficiency story; Step 4's full-fold weights (saved under `results/step4_probe_weights/lin_*.npz`) are the strongest probes per (feature, layer) and the right input for OOD eval.
+- **Per-feature in-distribution baseline AUC-ROC ranges 0.87-0.998**; the OOD *gap* is the story, not the absolute OOD number.
+- **Sycophancy-adj is sample-starved** at our current corpus sizes. Safety corpus should target ≥ 50-100 positives for this feature for the OOD comparison to be statistically meaningful.
+- **Scaler re-use:** the saved `lin_*_L*.npz` files include per-(feature, layer) scaler stats (`scaler_mean`, `scaler_scale`). Apply these to the safety-cache residuals before scoring.
 
 ### Open questions
 
