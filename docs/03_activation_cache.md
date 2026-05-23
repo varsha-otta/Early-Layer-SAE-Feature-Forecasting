@@ -6,7 +6,7 @@
 
 ## Goal
 
-Build a float16 activation cache from Gemma-2-2B on Pile-10k — early-layer residual streams plus the 5 target SAE feature activations at layer 20 — sized to fit the laptop memory budget for Step 4 probe training.
+Build a float16 activation cache from Gemma-2-2B (Gemma Team 2024) on Pile-10k (`NeelNanda/pile-10k`, a 10k-document sample of The Pile, Gao et al. 2020); early-layer residual streams plus the 5 target SAE feature activations at layer 20 (GemmaScope, Lieberum et al. 2024); sized to fit the laptop memory budget for Step 4 probe training.
 
 ## What was extracted
 
@@ -50,12 +50,12 @@ Fraction of the 102,400 tokens where each target feature's encoded activation is
 | 892   | sycophancy-adj    | 0.807% | 0.279% | **2.89x** |
 | 1031  | harm              | 0.641% | 0.481% | 1.33x |
 
-All five fire more often on our Pile-10k sample than Neuronpedia's reported rate, mostly within 1.2–1.8×. The outlier is **892 (sycophancy-adj) at 2.89×** — interesting but not alarming. Two plausible explanations:
+All five fire more often on our Pile-10k sample than Neuronpedia's reported rate, mostly within 1.2–1.8×. The outlier is **892 (sycophancy-adj) at 2.89×**; interesting but not alarming. Two plausible explanations:
 
 1. Neuronpedia computes `frac_nonzero` over a different corpus (likely the GemmaScope training distribution, sampled differently), so absolute comparison is noisy by construction.
 2. Pile-10k is web/news/discussion-heavy text, which oversamples constructions matching "insincere or exaggerated language" relative to Neuronpedia's sample.
 
-The ratio is well within the verifier's [0.25, 4.0] warning band (no warnings fired locally). Sample-size note: at 102,400 tokens, the standard error on a rate of 0.005 is ~0.0002, so ~5% relative — much smaller than the gap.
+The ratio is well within the verifier's [0.25, 4.0] warning band (no warnings fired locally). Sample-size note: at 102,400 tokens, the standard error on a rate of 0.005 is ~0.0002, so ~5% relative; much smaller than the gap.
 
 For Step 4 the practical consequence is positive label counts in the **580–1420 range** across the 5 features in the full cache (after the 80/20 sequence split: ~470–1135 train positives, ~115–285 test positives). Plenty for logistic regression; PR-AUC will matter more than ROC-AUC at these positive rates.
 
@@ -63,21 +63,21 @@ For Step 4 the practical consequence is positive label counts in the **580–142
 
 None worth flagging. The plan locked in the config in advance and the run matched it byte-for-byte: same 7 files, same shapes, same dtypes, sizes match the plan's table exactly (471 MB per resid layer, 1 MB features, 400 KB tokens).
 
-## Risks the plan called out — outcome
+## Risks the plan called out - outcome
 
 | Risk | Outcome |
 |---|---|
 | Drive lacks ~2 GB free | Cell 5 passed the disk check; cache fits comfortably. |
 | HF Gemma-2-2B license not accepted | Same auth path as smoke test; worked. |
 | SAE encode dtype mismatch | Explicit `.to(sae.W_enc.dtype)` cast in extraction cell; no errors. |
-| Float16 clipping | Verifier confirmed all four residual arrays have `|x|_max` well below the fp16 ceiling (per local run; metadata didn't persist this stat — could be added in v2). |
+| Float16 clipping | Verifier confirmed all four residual arrays have `|x|_max` well below the fp16 ceiling (per local run; metadata didn't persist this stat; could be added in v2). |
 | Pile-10k content drift on HF | Pinned to commit `127bfedc...`; recorded in `metadata.json`. |
 | User re-runs hook-registration cell | Hooks cleanup at top of extraction cell handles it. |
 
 ## Caveats for Step 4
 
 - **Sequence-level split, not token-level.** The plan calls for an 80/20 split by sequence index to prevent positional leakage. The cache layout (flat row-major, 256 tokens per sequence) is set up for this.
-- **BOS positions.** Position `k * 256` (k ∈ {0, ..., 399}) is always BOS — verified by the uniform-BOS-column check. The leaning is to mask these from train/eval since they carry no document-specific signal; this remains a Step 4 open question.
+- **BOS positions.** Position `k * 256` (k ∈ {0, ..., 399}) is always BOS; verified by the uniform-BOS-column check. The leaning is to mask these from train/eval since they carry no document-specific signal; this remains a Step 4 open question.
 - **Feature column order matches `data/target_features.json`.** Column `i` of `feature_acts.npy` is feature index `FEATURE_INDICES[i]` from the notebook config: `[9989, 817, 12730, 892, 1031]`.
 - **All layers cached, not just one at a time.** Step 4 should mmap each layer separately (per the local-RAM rule) and never hold more than one fp32 conversion in memory at once.
 

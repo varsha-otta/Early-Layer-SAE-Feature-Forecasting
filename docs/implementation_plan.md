@@ -1,12 +1,12 @@
-# Implementation plan: safety-sae-feature-forecasting
+# Implementation plan: Early-Layer-SAE-Feature-Forecasting
 
 Single living plan covering all seven steps in the README. Resumable: each step has a status, design notes, and pointers to its artifacts. Pick up from any "next" or "in progress" row.
 
-**Last updated:** 2026-05-23 (Step 6 done; OOD generalization evaluated on HH-RLHF red-team; Step 7 next).
+**Last updated:** 2026-05-23 (Step 7 done; project complete).
 
 ## Research question
 
-Can a small classifier trained on **early-layer** Gemma-2-2B residual stream activations predict whether a **late-layer** safety-flavored SAE feature will fire at the same token position — and crucially, how does the probe's data efficiency compare to training the late-layer SAE itself?
+Can a small classifier trained on **early-layer** Gemma-2-2B residual stream activations predict whether a **late-layer** safety-flavored SAE feature will fire at the same token position; and crucially, how does the probe's data efficiency compare to training the late-layer SAE itself?
 
 **Headline claim we want to support:** "We predict feature F at layer 20 from layer 5 activations with N tokens of probe data, vs M ≫ N tokens needed for the GemmaScope SAE at layer 20 to surface F as a coherent feature."
 
@@ -41,31 +41,31 @@ Three sub-questions, each owned by a later step:
 | 4 | Probe training + per-feature evaluation | done | `src/{data,eval,probe}.py`, `scripts/step4_train_probes.py`, `results/step4_*`, `docs/04_probes.md` |
 | 5 | Data-efficiency sweeps | done | `src/data_efficiency.py`, `scripts/step5_{efficiency,analysis}.py`, `results/step5_*`, `docs/05_data_efficiency.md` |
 | 6 | Generalization tests | done | `notebooks/03_safety_cache.ipynb`, `scripts/{check_safety_cache,step6_ood_eval}.py`, `data/cache/safety_v1/`, `results/step6_*`, `docs/06_generalization.md` |
-| 7 | Write-up | **next** | (planned) `docs/07_writeup.md` |
+| 7 | Write-up | done | `docs/07_writeup.md`, `docs/figures/fig{1,2,3}_*.png`, `scripts/step7_make_figures.py` |
 
 Workflow: per the project's pause-per-step convention, each step is completed and reviewed before the next begins.
 
 ---
 
-## Step 1: Env + smoke test — DONE
+## Step 1: Env + smoke test - DONE
 
 Goal was to verify the activation-extraction pipeline end-to-end on Colab T4.
 
 What was verified:
 - Gemma-2-2B loads via `transformers` (not `transformer_lens`, which OOMs Colab free's host RAM) with `torch.bfloat16` + `device_map=device` + `low_cpu_mem_usage=True`.
 - GemmaScope SAE loads at layer 20, width 16k, canonical.
-- Manual `register_forward_hook` on `model.model.layers[L]` (output tuple's first element) captures the post-block residual stream — the activation site GemmaScope residual SAEs were trained on.
+- Manual `register_forward_hook` on `model.model.layers[L]` (output tuple's first element) captures the post-block residual stream; the activation site GemmaScope residual SAEs were trained on.
 - `sae.encode(resid_20)` returns sane sparse activations (~tens to hundreds of nonzero features per token).
 
 Artifact: `notebooks/01_smoke_test.ipynb`.
 
-## Step 2: Target feature selection — DONE
+## Step 2: Target feature selection - DONE
 
 Goal was to pick 3-5 safety-flavored SAE features at Gemma-2-2B layer 20 for use as probe targets.
 
 Process:
 - Queried Neuronpedia's `/api/explanation/search` for 20 safety-related keywords (refusal, deception, sycophancy, harm, ethics, hedging, etc.). 79 unique candidates surfaced; 73 in the 0.05-1% firing-rate band.
-- For the top 10 candidates, fetched per-feature top-activating contexts to verify the auto-interp labels (3 of 10 turned out mislabeled or too narrow — important catch).
+- For the top 10 candidates, fetched per-feature top-activating contexts to verify the auto-interp labels (3 of 10 turned out mislabeled or too narrow; important catch).
 - Picked 5 features for diversity across safety dimensions.
 
 Picks: `[9989 refusal, 817 deception, 12730 ethics, 892 sycophancy-adjacent, 1031 harm]`, firing rates 0.28%-0.76%.
@@ -73,12 +73,12 @@ Picks: `[9989 refusal, 817 deception, 12730 ethics, 892 sycophancy-adjacent, 103
 Caveats: no clean sycophancy feature exists in the base model (would need Gemma-2-2B-it); no clean "controversial topic" or distinct "harmful-content recognition" feature surfaced.
 
 Artifacts:
-- `docs/02_feature_selection.md` — full record (queries, verification table, decision rationale, swap candidates)
-- `data/target_features.json` — machine-readable handoff to Step 3
-- `data/neuronpedia_search_raw.json`, `data/shortlist_v1.json` — raw and verified data
-- `scripts/step2_neuronpedia_search.py` — idempotent reproduction
+- `docs/02_feature_selection.md` - full record (queries, verification table, decision rationale, swap candidates)
+- `data/target_features.json` - machine-readable handoff to Step 3
+- `data/neuronpedia_search_raw.json`, `data/shortlist_v1.json` - raw and verified data
+- `scripts/step2_neuronpedia_search.py` - idempotent reproduction
 
-## Step 3: Activation cache extraction (Colab) — DONE
+## Step 3: Activation cache extraction (Colab) - DONE
 
 Cache built on Colab T4 on 2026-05-23, downloaded and verified locally. Final size matches the design (~1.89 GB across 7 files). Empirical per-feature fire rates and detailed retrospective: `docs/03_activation_cache.md`.
 
@@ -161,7 +161,7 @@ Safety-prompt corpus (Step 6), probe training code (Step 4), int8 quantization (
 
 ---
 
-## Step 4: Probe training + per-feature evaluation — DONE
+## Step 4: Probe training + per-feature evaluation - DONE
 
 40 probes trained and evaluated on 2026-05-23. Full retrospective: `docs/04_probes.md`.
 
@@ -193,20 +193,20 @@ Safety-prompt corpus (Step 6), probe training code (Step 4), int8 quantization (
 
 **Key takeaways:**
 - Linear precursor signal is decodable at layer 5 for every feature (AUC ≥ 0.87).
-- Layer 20 is essentially saturated (≥ 0.99 across the board) — that's the same-layer upper bound the SAE was trained against.
+- Layer 20 is essentially saturated (≥ 0.99 across the board); that's the same-layer upper bound the SAE was trained against.
 - MLP never beats linear by more than CI noise; the signal is linearly decodable. The "linear probe is enough" sanity check passes.
 - Harm (1031) is shallowly encoded (AUC ≈ 0.98 already at L5); ethics (12730) is the weakest and most variable.
 
 ### Artifacts
 
-- `src/__init__.py`, `src/data.py`, `src/eval.py`, `src/probe.py` — probe implementation
-- `scripts/step4_train_probes.py` — orchestrator with `--smoke`, `--skip-sweep`, `--C` flags
-- `results/step4_l2_sweep.csv` — 15-row CV sweep
-- `results/step4_probe_metrics.csv` — 40 rows: (5 features) × (4 layers) × (2 probe types)
-- `results/step4_meta.json` — split sequence IDs, best_C, per-layer wall times
-- `results/step4_probe_weights/{lin,mlp}_{idx}_L{layer}.npz` — 40 weight files for inspection
-- `results/step4_run.log` — full run log
-- `docs/04_probes.md` — retrospective with full empirical results and Step 5 caveats
+- `src/__init__.py`, `src/data.py`, `src/eval.py`, `src/probe.py` - probe implementation
+- `scripts/step4_train_probes.py` - orchestrator with `--smoke`, `--skip-sweep`, `--C` flags
+- `results/step4_l2_sweep.csv` - 15-row CV sweep
+- `results/step4_probe_metrics.csv` - 40 rows: (5 features) × (4 layers) × (2 probe types)
+- `results/step4_meta.json` - split sequence IDs, best_C, per-layer wall times
+- `results/step4_probe_weights/{lin,mlp}_{idx}_L{layer}.npz` - 40 weight files for inspection
+- `results/step4_run.log` - full run log
+- `docs/04_probes.md` - retrospective with full empirical results and Step 5 caveats
 
 ### Runtime
 
@@ -217,7 +217,7 @@ Safety-prompt corpus (Step 6), probe training code (Step 4), int8 quantization (
 - Calibration plot per probe → Step 7 figures.
 - Per-(feature, layer) hyperparameter tuning → not needed; AUC differences across the C grid were monotonic and the chosen C generalized.
 
-## Step 5: Data-efficiency sweeps — DONE
+## Step 5: Data-efficiency sweeps - DONE
 
 820 probes (708 non-degenerate) trained and evaluated on 2026-05-23. Full retrospective: `docs/05_data_efficiency.md`.
 
@@ -267,19 +267,19 @@ Safety-prompt corpus (Step 6), probe training code (Step 4), int8 quantization (
 **Key takeaways:**
 - Once we know which 5 features matter, the precursor probe predicts them with ~10⁻⁶ of the SAE's training data.
 - The ratio is most striking but also most caveated: the SAE solves an unsupervised dictionary-learning task; the probe is labeled binary classification. The ratio is a token-budget headline, not an apples-to-apples claim.
-- Refusal, deception, ethics never cross ROC=0.9 at L5 in our 81.6k-token fold — the precursor decodability story has clear feature dependence.
+- Refusal, deception, ethics never cross ROC=0.9 at L5 in our 81.6k-token fold; the precursor decodability story has clear feature dependence.
 - Harm and sycophancy-adj are decodable from L5 with single-digit-thousand tokens. Harm at L5 reaches ROC=0.9 with 3,791 tokens.
 
 ### Artifacts
 
-- `src/data_efficiency.py` — sequence-level subsample helper
-- `scripts/step5_efficiency.py` — full-sweep orchestrator (`--smoke`, `--layers` flags)
-- `scripts/step5_analysis.py` — aggregator + crossing extractor (mean N at AUC threshold via log-N interpolation)
-- `results/step5_efficiency_curves.csv` — 820 raw rows (one per probe fit)
-- `results/step5_efficiency_aggregate.csv` — 176 aggregate rows (mean/std/min/max across subsamples)
-- `results/step5_headline.csv` — 20 rows (full-N AUC + crossing N at ROC=0.9 and PR=0.5)
-- `results/step5_meta.json` — config, seeds, per-layer wall times
-- `docs/05_data_efficiency.md` — retrospective
+- `src/data_efficiency.py` - sequence-level subsample helper
+- `scripts/step5_efficiency.py` - full-sweep orchestrator (`--smoke`, `--layers` flags)
+- `scripts/step5_analysis.py` - aggregator + crossing extractor (mean N at AUC threshold via log-N interpolation)
+- `results/step5_efficiency_curves.csv` - 820 raw rows (one per probe fit)
+- `results/step5_efficiency_aggregate.csv` - 176 aggregate rows (mean/std/min/max across subsamples)
+- `results/step5_headline.csv` - 20 rows (full-N AUC + crossing N at ROC=0.9 and PR=0.5)
+- `results/step5_meta.json` - config, seeds, per-layer wall times
+- `docs/05_data_efficiency.md` - retrospective
 
 ### Runtime
 
@@ -291,13 +291,13 @@ Safety-prompt corpus (Step 6), probe training code (Step 4), int8 quantization (
 - Re-tuning C per N → not pursued; curves were sensible at fixed C=0.001.
 - Retraining a small SAE for a direct M_SAE comparison → out of scope; cite published number.
 
-## Step 6: Generalization tests — DONE
+## Step 6: Generalization tests - DONE
 
 OOD eval run 2026-05-23 against HH-RLHF red-team-attempts (human turns only). Full retrospective: `docs/06_generalization.md`.
 
 ### Resolved open questions
 
-- **Safety corpus:** `Anthropic/hh-rlhf`, data_dir `red-team-attempts`. Single corpus chosen for simplicity; covered all 5 features at 597-1587 OOD positives each — comfortably enough for stable bootstrap CIs.
+- **Safety corpus:** `Anthropic/hh-rlhf`, data_dir `red-team-attempts`. Single corpus chosen for simplicity; covered all 5 features at 597-1587 OOD positives each; comfortably enough for stable bootstrap CIs.
 - **Prompt format:** human turns only, no chat template (base model). Defensive 3-pattern parser handled the dataset's `transcript` field.
 - **Tokens:** 25,600 (100 sequences × 256, BOS-masked → 25,500).
 
@@ -327,20 +327,20 @@ OOD eval run 2026-05-23 against HH-RLHF red-team-attempts (human turns only). Fu
 - **L20 transfer is essentially clean** (gap ≤ 0.02 across all 5 features). The same-layer probe deploys directly on safety data without recalibration.
 - **Early-layer transfer splits by feature kind:**
   - Lexical features (harm, sycophancy-adj): OOD AUC > 0.91 at L5, gap ≤ 0.06 everywhere.
-  - Abstract features (refusal, deception, ethics): OOD AUC 0.72-0.84 at L5-L12, gap 0.09-0.17 — most of Step 4's early-layer signal for these was Pile-specific.
+  - Abstract features (refusal, deception, ethics): OOD AUC 0.72-0.84 at L5-L12, gap 0.09-0.17; most of Step 4's early-layer signal for these was Pile-specific.
 - **OOD fire rates are 2-9× higher than ID** (ethics 8.7×, harm 9.7×). AUC-ROC is base-rate-invariant so the comparison is honest; AUC-PR numbers OOD are higher partly because of base-rate elevation, not pure ranking improvement.
 
 ### Artifacts
 
-- `notebooks/03_safety_cache.ipynb` — Colab extraction notebook
-- `scripts/_build_safety_notebook.py` — internal notebook generator
-- `scripts/check_safety_cache.py` — local verifier
-- `scripts/step6_ood_eval.py` — OOD scoring script
-- `data/cache/safety_v1/` — 472 MB OOD cache (gitignored)
-- `results/step6_ood_metrics.csv` — 20 rows: OOD + ID + gap per (feature, layer)
-- `results/step6_meta.json` — config + per-feature OOD positive counts
-- `results/step6_run.log` — eval run log
-- `docs/06_generalization.md` — retrospective
+- `notebooks/03_safety_cache.ipynb` - Colab extraction notebook
+- `scripts/_build_safety_notebook.py` - internal notebook generator
+- `scripts/check_safety_cache.py` - local verifier
+- `scripts/step6_ood_eval.py` - OOD scoring script
+- `data/cache/safety_v1/` - 472 MB OOD cache (gitignored)
+- `results/step6_ood_metrics.csv` - 20 rows: OOD + ID + gap per (feature, layer)
+- `results/step6_meta.json` - config + per-feature OOD positive counts
+- `results/step6_run.log` - eval run log
+- `docs/06_generalization.md` - retrospective
 
 ### Runtime
 
@@ -349,22 +349,36 @@ OOD eval run 2026-05-23 against HH-RLHF red-team-attempts (human turns only). Fu
 
 ### Out of scope for Step 6 (deferred)
 
-- Multiple OOD corpora (e.g. AdvBench, MoralBench) — single-corpus signal was sufficient.
-- Step 5-style efficiency curves on the OOD distribution — write-up may flag as future work.
-- Retraining a probe on a mixed Pile + safety corpus to see if the abstract-feature gap closes — future work.
+- Multiple OOD corpora (e.g. AdvBench, MoralBench); single-corpus signal was sufficient.
+- Step 5-style efficiency curves on the OOD distribution; write-up may flag as future work.
+- Retraining a probe on a mixed Pile + safety corpus to see if the abstract-feature gap closes; future work.
 
-## Step 7: Write-up — PENDING
+## Step 7: Write-up - DONE
 
-### Sketch
+Technical-report Markdown (~2,400 words) with blog-style narrative intros to each section, 3 figures, and links to the per-step retrospectives. Written 2026-05-23.
 
-**Format:** Markdown technical report, ~2-3 pages, in `docs/07_writeup.md`. Could later port to a blog post or arXiv-style PDF.
+### Final structure
 
-**Figures:**
-1. Headline: probe AUC vs early layer (5/8/12/20), faceted by feature.
-2. Data-efficiency curves: AUC vs N, one panel per feature, with SAE training-set marker for scale.
-3. Generalization: in-distribution vs OOD AUC per feature.
+| Section | Content |
+|---|---|
+| Abstract | Three-claim headline |
+| 1. Introduction | The motivation: SAEs are expensive; can we amortize once-trained features into cheap predictors? |
+| 2. Method | Model, SAE, features, cache, splits, probe, metrics, OOD eval; compressed pointers to the per-step retrospectives |
+| 3. Results | 3.1 In-distribution decodability (Figure 1) → 3.2 Data efficiency (Figure 2, headline ratio table) → 3.3 Generalization (Figure 3, surface-form-vs-abstract split, fire-rate elevation table) |
+| 4. Discussion + limitations | Load-bearing claims, 6 numbered limitations, one missing follow-up experiment |
+| 5. Reproducibility | Per-step doc + code pointers, compute envelope |
 
-**Sections:** intro/motivation → method → results → limitations → reproducibility (links to notebooks + scripts).
+### Figures
+
+- `docs/figures/fig1_auc_by_layer.png` - AUC-ROC and AUC-PR panels, one line per feature, 95% bootstrap bands.
+- `docs/figures/fig2_data_efficiency.png` - 5 feature panels + 6th SAE-scale callout. AUC-ROC vs log N, one line per layer, ±1 std bands.
+- `docs/figures/fig3_id_vs_ood.png` - paired bars per (feature, layer), ID vs OOD AUC-ROC, OOD bootstrap CIs.
+
+### Out of scope (deferred to a v2 if pursued)
+
+- Mixed-distribution training to test whether the early-layer abstract-feature OOD gap closes.
+- arXiv/PDF version (the writeup is markdown; conversion is mechanical).
+- A "lookahead" framing (predict next-N-token feature firings rather than current-token).
 
 ---
 

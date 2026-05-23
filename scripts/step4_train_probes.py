@@ -59,7 +59,7 @@ SWEEP_CSV = RESULTS_DIR / "step4_l2_sweep.csv"
 METRICS_CSV = RESULTS_DIR / "step4_probe_metrics.csv"
 META_JSON = RESULTS_DIR / "step4_meta.json"
 
-# L2 sweep configuration. We sweep on (feature=9989, layer=12) — refusal at the
+# L2 sweep configuration. We sweep on (feature=9989, layer=12) - refusal at the
 # midpoint of the early-layer range, the canonical "is the precursor signal
 # there?" question. The chosen C is reused for all 20 linear probes.
 SWEEP_FEATURE = 9989

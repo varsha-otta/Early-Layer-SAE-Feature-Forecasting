@@ -4,7 +4,7 @@ Linear probe = sklearn LogisticRegression with class_weight='balanced'.
 MLP sanity = tiny PyTorch 2-layer net trained with BCEWithLogitsLoss.
 
 Both probes expect the residuals to already be standardized (mean=0, std=1
-per dim) — done by the orchestrator so the same scaler is shared across all
+per dim); done by the orchestrator so the same scaler is shared across all
 5 features for a given layer.
 """
 from __future__ import annotations

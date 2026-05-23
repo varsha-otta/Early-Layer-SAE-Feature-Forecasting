@@ -5,7 +5,7 @@ draw a subsample of `n_seq` train sequences and return the corresponding row
 positions in the already-materialized X_train tensor.
 
 The subsample unit is **sequences** (not tokens). Step 3's cache layout puts
-sequences sequence-major after BOS masking — train sequence position `p` in
+sequences sequence-major after BOS masking; train sequence position `p` in
 X_train occupies rows [p*255, (p+1)*255). We sample WITHOUT replacement from
 the 320 train sequence positions.
 
@@ -46,7 +46,7 @@ class Subsample:
 def make_subsample(split: Split, n_seq: int, seed: int) -> Subsample:
     """Sample n_seq distinct train-sequence positions and expand to row indices.
 
-    Positions are drawn from [0, len(split.train_seq_ids)) — i.e. positions
+    Positions are drawn from [0, len(split.train_seq_ids)); i.e. positions
     within the already-built train fold (320 sequences). The returned
     `local_rows` indexes directly into a materialized X_train of shape
     (81600, D_MODEL).

@@ -6,11 +6,11 @@
 
 ## Goal
 
-Train one linear (logistic regression) and one tiny MLP probe per (target feature, residual-stream layer) combination, evaluate on a held-out test fold, and check whether the precursor signal — i.e. the ability to predict a late-layer SAE feature's firing from earlier-layer activations — is decodable, and how it scales with depth.
+Train one linear (logistic regression) and one tiny MLP probe per (target feature, residual-stream layer) combination, evaluate on a held-out test fold, and check whether the precursor signal; i.e. the ability to predict a late-layer SAE feature's firing from earlier-layer activations; is decodable, and how it scales with depth.
 
 ## Headline result
 
-Every target feature is predictable from layer 5 activations alone — and every late-layer probe is essentially saturated. **Linear AUC-ROC by (feature, layer):**
+Every target feature is predictable from layer 5 activations alone; and every late-layer probe is essentially saturated. **Linear AUC-ROC by (feature, layer):**
 
 | feature | theme | L5 | L8 | L12 | L20 |
 |---|---|---|---|---|---|
@@ -35,13 +35,13 @@ PR-AUC ratios over the test-fold base rate range from ~17× (refusal/L5) to ~200
 ## What the numbers say
 
 1. **The precursor signal exists shallow.** All 5 features get AUC-ROC ≥ 0.87 from layer 5 activations alone. None require the deep layers to be decodable at all; they just become more decodable.
-2. **Layer 20 is essentially saturated.** AUC-ROC ≥ 0.99 and AUC-PR > 0.66 across all features, even though the SAE was trained on this layer's activations. This is the upper-bound probe — anything Step 5/6 reports should be benchmarked against it.
+2. **Layer 20 is essentially saturated.** AUC-ROC ≥ 0.99 and AUC-PR > 0.66 across all features, even though the SAE was trained on this layer's activations. This is the upper-bound probe; anything Step 5/6 reports should be benchmarked against it.
 3. **Monotonic-but-non-uniform growth.** Refusal and deception climb steadily across layers; harm is nearly flat (0.978 at L5 already); ethics has a small dip at L12 vs L8 (0.918 vs 0.925), within bootstrap CI overlap.
 4. **Linear beats MLP almost everywhere.** Across all 20 pairs the MLP either ties (within CI) or loses to the linear probe by 0.001-0.01 AUC-ROC. This is a clean "linear is enough" sanity check: residual-stream → SAE-feature-fires is effectively a linearly-decodable relation at every layer we measured, and the 128-hidden MLP wasn't able to find a non-linear signal worth its expressivity. Two contributing reasons:
    - At the same layer, the SAE encoder *is* a linear projection through `W_enc` followed by JumpReLU; "fires" is a single threshold on a linear function of residuals. So same-layer L20 is linear by construction.
-   - Earlier-layer precursor signal seems to flow through linear subspaces of the residual stream — at least at the granularity of 102k training tokens.
-5. **Harm (1031) is shallowly encoded.** AUC-ROC ≈ 0.978 already at layer 5, with AUC-PR ≈ 0.50. The feature is largely tracking lexical / shallow semantic cues that the model has already extracted by L5. This is the most "boring" precursor in the sense that depth contributes little; it's also the highest-confidence prediction available from any early layer.
-6. **Ethics (12730) is the weakest precursor.** AUC-PR 0.078 at L5, jumping ~2.3× to L8, then flat through L12 before jumping ~4× to L20. The CIs are also widest for this feature (only 75 test positives). Possible interpretation: ethics is the most "compositional" of the five — built up across the network, not surface-form-detectable.
+   - Earlier-layer precursor signal seems to flow through linear subspaces of the residual stream; at least at the granularity of 102k training tokens.
+5. **Harm (1031) is shallowly encoded.** AUC-ROC ≈ 0.978 already at layer 5, with AUC-PR ≈ 0.50. The feature is largely tracking surface-form / shallow semantic cues that the model has already extracted by L5. This is the most "boring" precursor in the sense that depth contributes little; it's also the highest-confidence prediction available from any early layer.
+6. **Ethics (12730) is the weakest precursor.** AUC-PR 0.078 at L5, jumping ~2.3× to L8, then flat through L12 before jumping ~4× to L20. The CIs are also widest for this feature (only 75 test positives). Possible interpretation: ethics is the most abstract of the five; assembled across many layers, not detectable from any specific surface-form token.
 7. **L2 sweep picked C=0.001** (strongest regularization on the [1e-3, 10] grid). All 3 CV folds agreed. With d=2304 and a few hundred positives per feature, heavy shrinkage helps; sklearn's default C=1 would have left the probe under-regularized for this regime.
 
 ## Config (single source of truth)
@@ -52,7 +52,7 @@ PR-AUC ratios over the test-fold base rate range from ~17× (refusal/L5) to ~200
 | Per-probe inputs | per-dim z-scored residuals; scaler fit on the train fold |
 | L2 strength | C = 0.001 (chosen once on feature 9989 / layer 12 via 3-fold stratified CV; reused for all 20 linear probes) |
 | Split | 320 train / 80 test sequences (seed 0), shared across all 20 probes |
-| BOS mask | yes — position 0 of every sequence dropped → 81,600 train / 20,400 test tokens |
+| BOS mask | yes; position 0 of every sequence dropped → 81,600 train / 20,400 test tokens |
 | Labels | `feature_acts > 0` (binary fire; the SAE's JumpReLU defines "fires") |
 | Bootstrap | 200 stratified resamples on the test fold; 95% percentile CIs |
 | Determinism | seed 0 everywhere splits/subsamples/MLP init appear |
@@ -83,7 +83,7 @@ These per-feature positive counts will determine the lower end of the N sweep in
 | Layer 20 (5 linear + 5 MLP) | 7.9 min |
 | **total** | **~27 min** |
 
-Layer 20 ran longer because the linear fits took more iterations on average — consistent with the picture that L20 residuals carry stronger signal that the optimizer chases further before convergence.
+Layer 20 ran longer because the linear fits took more iterations on average; consistent with the picture that L20 residuals carry stronger signal that the optimizer chases further before convergence.
 
 ## Risks vs outcome
 
@@ -99,7 +99,7 @@ Layer 20 ran longer because the linear fits took more iterations on average — 
 
 | Item | Plan | Actual |
 |---|---|---|
-| L2 sweep scope | "swept on a held-out subset of the train fold" | One representative sweep (feature 9989, layer 12), C reused across all 20 probes — explicitly confirmed before implementation |
+| L2 sweep scope | "swept on a held-out subset of the train fold" | One representative sweep (feature 9989, layer 12), C reused across all 20 probes; explicitly confirmed before implementation |
 | C grid | unspecified | `[1e-3, 1e-2, 1e-1, 1, 10]` |
 | MLP scope | "sanity check" | Run for all 20 (feature, layer) pairs (explicitly confirmed) |
 | Bootstrap resamples | "100 resamples" | **200** resamples for tighter percentile estimates |

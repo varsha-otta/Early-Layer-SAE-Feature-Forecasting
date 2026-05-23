@@ -183,7 +183,7 @@ def check_features(log, meta):
     low_count = [(idx, n_pos_per_feat[i]) for i, idx in enumerate(EXPECTED_FEATURES) if n_pos_per_feat[i] < 20]
     if low_count:
         for idx, n in low_count:
-            log.warn(f"feature {idx}: only {n} positives in 25,600 tokens — OOD AUC-PR will be wide")
+            log.warn(f"feature {idx}: only {n} positives in 25,600 tokens; OOD AUC-PR will be wide")
 
 
 def check_tokens(log):

@@ -1,4 +1,4 @@
-# safety-sae-feature-forecasting
+# Early-Layer-SAE-Feature-Forecasting
 
 Forecasting safety-relevant sparse autoencoder (SAE) features in Gemma-2-2B from earlier-layer activations.
 
@@ -12,18 +12,22 @@ Headline target claim:
 
 Empirical result (Step 5, Pile-10k, AUC-ROC ≥ 0.9 threshold):
 
-> Once GemmaScope's ~4B-token SAE has surfaced a layer-20 safety feature, predicting whether that feature fires from **layer-20 activations** takes ~0.9k-6.4k tokens — **about 10⁵-10⁶× less data** than the SAE itself needed. From mid-network (layer 8) the same threshold is reached in 1-50k tokens with strong feature-by-feature variance; from early layers (5) only the most lexically-salient features (harm, sycophancy-adj) cross 0.9 within our 81.6k-token test budget.
+> Once GemmaScope's ~4B-token SAE has surfaced a layer-20 safety feature, predicting whether that feature fires from **layer-20 activations** takes ~0.9k-6.4k tokens; **about 10⁵-10⁶× less data** than the SAE itself needed. From mid-network (layer 8) the same threshold is reached in 1-50k tokens with strong feature-by-feature variance; from early layers (5) only the most surface-form features (harm, sycophancy-adj — features that fire on specific words/tokens) cross 0.9 within our 81.6k-token test budget.
 
 ## Approach
 
 | | |
 |---|---|
-| Model | `google/gemma-2-2b` (base, 26 layers) |
-| SAEs | GemmaScope residual-stream, width 16k, canonical |
+| Model | `google/gemma-2-2b` (base, 26 layers) (Gemma Team 2024) |
+| SAEs | GemmaScope residual-stream, width 16k, canonical (Lieberum et al. 2024) |
 | Early layers | L_early ∈ {5, 8, 12} |
 | Late layer | L_late = 20 (also cached as a same-layer upper-bound probe) |
-| Target features | 5 safety-flavored SAE features at layer 20, picked via Neuronpedia + manual verification (`data/target_features.json`) |
-| Probes | Linear (logistic regression) primary; 2-layer MLP as sanity check |
+| Target features | 5 safety-flavored SAE features at layer 20, picked via Neuronpedia (Lin et al. 2023) + manual verification (`data/target_features.json`) |
+| ID corpus | `NeelNanda/pile-10k` (Gao et al. 2020) |
+| OOD corpus | `Anthropic/hh-rlhf` `red-team-attempts` (Ganguli et al. 2022; Bai et al. 2022) |
+| Probes | Linear (logistic regression) primary (Pedregosa et al. 2011); 2-layer MLP as sanity check |
+
+Full bibliographic entries for all citations are in [`docs/07_writeup.md#references`](docs/07_writeup.md#references).
 
 ## Compute split
 
@@ -34,7 +38,7 @@ Rationale: Gemma-2-2B forward passes don't fit comfortably in 8 GB system RAM, b
 
 ## Status
 
-**Step 7 of 7: write-up: next.** See `docs/implementation_plan.md` for the full per-step design.
+**Project complete.** Technical write-up in `docs/07_writeup.md`; figures in `docs/figures/`. See `docs/implementation_plan.md` for the full per-step design.
 
 Step 5 headline (tokens to hit AUC-ROC ≥ 0.9 vs ~4B-token GemmaScope SAE training corpus):
 
@@ -56,7 +60,7 @@ Step 6 generalization (Pile-trained probes → HH-RLHF red-team prompts, OOD AUC
 | sycophancy-adj | 0.917 (+0.02) | 0.941 (+0.03) | 0.957 (+0.03) | **0.986 (+0.012)** |
 | harm | 0.915 (+0.06) | 0.935 (+0.04) | 0.943 (+0.04) | **0.986 (+0.011)** |
 
-**L20 probes transfer near-perfectly (gap ≤ 0.02 across all features); early-layer transfer is feature-dependent — abstract features (refusal, deception, ethics) lose 0.10-0.17 AUC at L5-L12, while lexical features (harm, sycophancy-adj) hold AUC > 0.9 everywhere.** See `docs/04_probes.md`, `docs/05_data_efficiency.md`, `docs/06_generalization.md`.
+**L20 probes transfer near-perfectly (gap ≤ 0.02 across all features); early-layer transfer is feature-dependent; abstract features (refusal, deception, ethics) lose 0.10-0.17 AUC at L5-L12, while surface-form features (harm, sycophancy-adj) hold AUC > 0.9 everywhere.** See `docs/04_probes.md`, `docs/05_data_efficiency.md`, `docs/06_generalization.md`.
 
 | # | Step | Status |
 |---|---|---|
@@ -66,7 +70,7 @@ Step 6 generalization (Pile-trained probes → HH-RLHF red-team prompts, OOD AUC
 | 4 | Probe training + per-feature evaluation | done. 40 probes; AUC tables in `docs/04_probes.md`, metrics in `results/step4_probe_metrics.csv` |
 | 5 | Data-efficiency sweeps | done. 820 probes; headline in `docs/05_data_efficiency.md`, curves in `results/step5_efficiency_curves.csv` |
 | 6 | Generalization tests (web → safety prompts) | done. OOD eval on HH-RLHF red-team; full table in `docs/06_generalization.md`, metrics in `results/step6_ood_metrics.csv` |
-| 7 | Write-up | next |
+| 7 | Write-up | done. Technical report at `docs/07_writeup.md`; figures at `docs/figures/` |
 
 ## Layout
 
@@ -81,7 +85,9 @@ Step 6 generalization (Pile-trained probes → HH-RLHF red-team prompts, OOD AUC
 │   ├── 03_activation_cache.md        # Step 3 retrospective (cache empirics, fire rates)
 │   ├── 04_probes.md                  # Step 4 retrospective (AUC tables, MLP vs linear)
 │   ├── 05_data_efficiency.md         # Step 5 retrospective (N-sweep curves, M_SAE/N_probe ratios)
-│   └── 06_generalization.md          # Step 6 retrospective (OOD AUC, ID/OOD gap by layer)
+│   ├── 06_generalization.md          # Step 6 retrospective (OOD AUC, ID/OOD gap by layer)
+│   ├── 07_writeup.md                 # Step 7 technical report (~2,400 words, 3 figures)
+│   └── figures/                      # PNG figures referenced by the writeup
 ├── notebooks/
 │   ├── 01_smoke_test.ipynb           # Colab; Step 1: model + SAE + hooks pipeline
 │   ├── 02_activation_cache.ipynb     # Colab; Step 3: ~1.89 GB Pile-10k activation cache
@@ -95,7 +101,8 @@ Step 6 generalization (Pile-trained probes → HH-RLHF red-team prompts, OOD AUC
 │   ├── step5_efficiency.py           # Step 5: N-sweep across (feature, layer, N, subsample)
 │   ├── step5_analysis.py             # Step 5: aggregate + headline N-at-threshold extractor
 │   ├── step6_ood_eval.py             # Step 6: score Step 4 probes on safety cache, write OOD CSV
-│   └── _build_safety_notebook.py     # Step 6: internal regenerator for 03_safety_cache.ipynb
+│   ├── _build_safety_notebook.py     # Step 6: internal regenerator for 03_safety_cache.ipynb
+│   └── step7_make_figures.py         # Step 7: generate the 3 writeup figures from existing CSVs
 ├── src/                              # probe training + analysis (Step 4 onward)
 │   ├── data.py                       # cache loaders, sequence split, BOS mask, z-scoring
 │   ├── eval.py                       # AUC-ROC, AUC-PR, precision@k, bootstrap CIs

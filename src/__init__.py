@@ -1,1 +1,1 @@
-"""safety-sae-feature-forecasting (Step 4+): probe training and analysis."""
+"""Early-Layer-SAE-Feature-Forecasting (Step 4+): probe training and analysis."""

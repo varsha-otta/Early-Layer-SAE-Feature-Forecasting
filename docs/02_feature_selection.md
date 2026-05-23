@@ -15,7 +15,9 @@ Choose 3-5 SAE features at Gemma-2-2B layer 20 (residual stream, width 16k) to u
 
 ## Data source
 
-GemmaScope canonical residual-stream SAEs on Gemma-2-2B, layer 20, width 16k. Feature browsing via the **Neuronpedia public API** (no auth required).
+GemmaScope canonical residual-stream SAEs (Lieberum et al. 2024) on Gemma-2-2B (Gemma Team 2024), layer 20, width 16k. Feature browsing via the **Neuronpedia public API** (Lin et al. 2023; no auth required).
+
+Full bibliographic entries for these references are in `docs/07_writeup.md#references`.
 
 | Resource | URL |
 |---|---|

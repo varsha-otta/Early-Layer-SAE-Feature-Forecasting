@@ -38,7 +38,7 @@ cells = []
 
 # 0
 cells.append(md("""
-# safety-sae-feature-forecasting: Step 6 - safety-corpus activation cache
+# Early-Layer-SAE-Feature-Forecasting: Step 6 - safety-corpus activation cache
 
 Builds an **out-of-distribution** activation cache from Anthropic's HH-RLHF red-team-attempts subset (human turns only, prompt-only). Step 6's local evaluator scores the Step 4 probes against this cache to measure how the precursor probe generalizes from web text to safety prompts.
 
@@ -82,7 +82,7 @@ Gemma-2-2B is gated. Before continuing:
 1. Accept the license at https://huggingface.co/google/gemma-2-2b
 2. Generate a read token at https://huggingface.co/settings/tokens
 
-Anthropic/hh-rlhf is public — no extra license required.
+Anthropic/hh-rlhf is public; no extra license required.
 """))
 cells.append(code("""
 from huggingface_hub import notebook_login
@@ -169,7 +169,7 @@ cells.append(md("""
 
 The red-team subset's `transcript` field is a multi-turn conversation between a human red-teamer and a model assistant. We extract only the **human turns** because:
 
-- The probe is a *precursor* detector — what fires on the user's input, before the model has decided how to respond.
+- The probe is a *precursor* detector; what fires on the user's input, before the model has decided how to respond.
 - The Step 4 probe was trained on Pile-10k (web text, no chat markup); evaluating it on human-side prompts keeps the input distribution closer to "natural text" than on assistant outputs which often carry refusal templates that would be a different distribution shift.
 
 Parsing: split each transcript on `\\n\\nHuman:` / `\\n\\nAssistant:` markers (the canonical Anthropic format), keep only the parts after `Human:` until the next marker, and tokenize without special tokens. Concatenate human turns across the dataset into a flat buffer of `100 × 255 = 25,500` raw tokens, reshape, BOS-prefix → `(100, 256)`.
@@ -381,12 +381,12 @@ for p in sorted(out.iterdir()):
 
 # 21, 22 -- Step 6 specific: compare safety vs Pile fire rates
 cells.append(md("""
-## 11. Sanity statistics — safety vs Pile-10k
+## 11. Sanity statistics - safety vs Pile-10k
 
 Three checks:
-1. **Safety-corpus fire rates vs the Pile-10k cache's** (from Step 3). Big differences are *interesting*, not failures — they tell us how the OOD distribution differs from the in-distribution one.
-2. **Top-activating contexts on safety prompts** — should look semantically aligned with each feature's theme (refusal cues should appear in refusal contexts, harm cues in harmful contexts, etc.).
-3. **Per-layer residual stats** — the same float16-clipping check as Step 3.
+1. **Safety-corpus fire rates vs the Pile-10k cache's** (from Step 3). Big differences are *interesting*, not failures; they tell us how the OOD distribution differs from the in-distribution one.
+2. **Top-activating contexts on safety prompts**; should look semantically aligned with each feature's theme (refusal cues should appear in refusal contexts, harm cues in harmful contexts, etc.).
+3. **Per-layer residual stats**; the same float16-clipping check as Step 3.
 """))
 cells.append(code("""
 # Pile-10k fire rates from the Step 3 metadata (committed to the repo).

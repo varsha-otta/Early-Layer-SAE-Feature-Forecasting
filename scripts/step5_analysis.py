@@ -2,11 +2,11 @@
 
 Two views are produced:
 
-  1. **Per-(feature, layer, N) aggregate** — mean and std of AUC-ROC, AUC-PR,
+  1. **Per-(feature, layer, N) aggregate**; mean and std of AUC-ROC, AUC-PR,
      p@k across the (up to 5) subsamples. Degenerate rows are dropped before
      aggregation. Written to `results/step5_efficiency_aggregate.csv`.
 
-  2. **Headline table** — for each (feature, layer), find the smallest N at
+  2. **Headline table**; for each (feature, layer), find the smallest N at
      which the *mean* AUC crosses two thresholds: AUC-ROC = 0.9 and
      AUC-PR = 0.5. Linear interpolation between adjacent N points in log-N
      space; reports n_tokens at the crossing. Written to
