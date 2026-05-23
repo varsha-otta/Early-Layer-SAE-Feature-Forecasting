@@ -2,7 +2,7 @@
 
 Single living plan covering all seven steps in the README. Resumable: each step has a status, design notes, and pointers to its artifacts. Pick up from any "next" or "in progress" row.
 
-**Last updated:** 2026-05-23 (Step 5 done; 820 efficiency-sweep probes run; Step 6 next).
+**Last updated:** 2026-05-23 (Step 6 done; OOD generalization evaluated on HH-RLHF red-team; Step 7 next).
 
 ## Research question
 
@@ -40,8 +40,8 @@ Three sub-questions, each owned by a later step:
 | 3 | Activation cache extraction (Colab) | done | `notebooks/02_activation_cache.ipynb`, `scripts/check_activation_cache.py`, `data/cache/v1/`, `docs/03_activation_cache.md` |
 | 4 | Probe training + per-feature evaluation | done | `src/{data,eval,probe}.py`, `scripts/step4_train_probes.py`, `results/step4_*`, `docs/04_probes.md` |
 | 5 | Data-efficiency sweeps | done | `src/data_efficiency.py`, `scripts/step5_{efficiency,analysis}.py`, `results/step5_*`, `docs/05_data_efficiency.md` |
-| 6 | Generalization tests | **next** | (planned) safety-prompts cache + `results/step6_generalization.csv` |
-| 7 | Write-up | pending | (planned) `docs/07_writeup.md` |
+| 6 | Generalization tests | done | `notebooks/03_safety_cache.ipynb`, `scripts/{check_safety_cache,step6_ood_eval}.py`, `data/cache/safety_v1/`, `results/step6_*`, `docs/06_generalization.md` |
+| 7 | Write-up | **next** | (planned) `docs/07_writeup.md` |
 
 Workflow: per the project's pause-per-step convention, each step is completed and reviewed before the next begins.
 
@@ -291,27 +291,67 @@ Safety-prompt corpus (Step 6), probe training code (Step 4), int8 quantization (
 - Re-tuning C per N → not pursued; curves were sensible at fixed C=0.001.
 - Retraining a small SAE for a direct M_SAE comparison → out of scope; cite published number.
 
-## Step 6: Generalization tests — PENDING
+## Step 6: Generalization tests — DONE
 
-### Sketch
+OOD eval run 2026-05-23 against HH-RLHF red-team-attempts (human turns only). Full retrospective: `docs/06_generalization.md`.
 
-Train probe on Pile-10k cache (Step 3), evaluate on a held-out safety-prompt distribution.
+### Resolved open questions
 
-**Safety-prompt corpus:** to decide. Candidates: AdvBench, HarmBench, a slice of Anthropic HH-RLHF (red-team subset), or a hand-curated set of refusal-flavored prompts. Will need ~10k-50k tokens. Built as a second activation cache (`data/cache/safety_v1/`) following the Step 3 pipeline.
+- **Safety corpus:** `Anthropic/hh-rlhf`, data_dir `red-team-attempts`. Single corpus chosen for simplicity; covered all 5 features at 597-1587 OOD positives each — comfortably enough for stable bootstrap CIs.
+- **Prompt format:** human turns only, no chat template (base model). Defensive 3-pattern parser handled the dataset's `transcript` field.
+- **Tokens:** 25,600 (100 sequences × 256, BOS-masked → 25,500).
 
-**Comparison:** in-distribution AUC (Pile test fold) vs out-of-distribution AUC (safety cache). Gap is the generalization story.
+### Final locked-in config
 
-### Step-5-informed caveats
+| | value |
+|---|---|
+| OOD corpus | `Anthropic/hh-rlhf`/`red-team-attempts`, human turns only |
+| Cache shape | (25,600, 2304) fp16 × 4 layers, (25,600, 5) feature acts |
+| Probe inputs | Step 4 `lin_*_L*.npz` weights + their saved scaler stats (Pile-fitted, NOT refit on safety data) |
+| Metrics | AUC-ROC, AUC-PR, p@k, 200-resample stratified bootstrap |
+| Headline metric | AUC-ROC (PR base rates differ between distributions; AUC-PR not directly comparable) |
 
-- **Use Step 4 weights, not Step 5 weights, as the OOD probe.** Step 5 probes are weaker artifacts intended for the efficiency story; Step 4's full-fold weights (saved under `results/step4_probe_weights/lin_*.npz`) are the strongest probes per (feature, layer) and the right input for OOD eval.
-- **Per-feature in-distribution baseline AUC-ROC ranges 0.87-0.998**; the OOD *gap* is the story, not the absolute OOD number.
-- **Sycophancy-adj is sample-starved** at our current corpus sizes. Safety corpus should target ≥ 50-100 positives for this feature for the OOD comparison to be statistically meaningful.
-- **Scaler re-use:** the saved `lin_*_L*.npz` files include per-(feature, layer) scaler stats (`scaler_mean`, `scaler_scale`). Apply these to the safety-cache residuals before scoring.
+### Headline empirical results
 
-### Open questions
+**OOD AUC-ROC at each layer + gap from in-distribution baseline:**
 
-- Which safety corpus best matches our 5 features? Refusal/harm picks point toward red-team / AdvBench-like; ethics points toward MoralBench or similar. May want multiple eval sets.
-- Tokenize at prompt-only or prompt+response? Probably prompt-only (matches the precursor framing — we want to detect intent before the response).
+| feature | L5 | L8 | L12 | L20 |
+|---|---|---|---|---|
+| 9989 refusal | 0.761 (+0.13) | 0.794 (+0.11) | 0.838 (+0.10) | **0.987 (+0.009)** |
+| 817 deception | 0.721 (+0.17) | 0.805 (+0.12) | 0.820 (+0.12) | **0.984 (+0.013)** |
+| 12730 ethics | 0.755 (+0.12) | 0.802 (+0.12) | 0.832 (+0.09) | **0.976 (+0.017)** |
+| 892 sycophancy-adj | 0.917 (+0.02) | 0.941 (+0.03) | 0.957 (+0.03) | **0.986 (+0.012)** |
+| 1031 harm | 0.915 (+0.06) | 0.935 (+0.04) | 0.943 (+0.04) | **0.986 (+0.011)** |
+
+**Key takeaways:**
+- **L20 transfer is essentially clean** (gap ≤ 0.02 across all 5 features). The same-layer probe deploys directly on safety data without recalibration.
+- **Early-layer transfer splits by feature kind:**
+  - Lexical features (harm, sycophancy-adj): OOD AUC > 0.91 at L5, gap ≤ 0.06 everywhere.
+  - Abstract features (refusal, deception, ethics): OOD AUC 0.72-0.84 at L5-L12, gap 0.09-0.17 — most of Step 4's early-layer signal for these was Pile-specific.
+- **OOD fire rates are 2-9× higher than ID** (ethics 8.7×, harm 9.7×). AUC-ROC is base-rate-invariant so the comparison is honest; AUC-PR numbers OOD are higher partly because of base-rate elevation, not pure ranking improvement.
+
+### Artifacts
+
+- `notebooks/03_safety_cache.ipynb` — Colab extraction notebook
+- `scripts/_build_safety_notebook.py` — internal notebook generator
+- `scripts/check_safety_cache.py` — local verifier
+- `scripts/step6_ood_eval.py` — OOD scoring script
+- `data/cache/safety_v1/` — 472 MB OOD cache (gitignored)
+- `results/step6_ood_metrics.csv` — 20 rows: OOD + ID + gap per (feature, layer)
+- `results/step6_meta.json` — config + per-feature OOD positive counts
+- `results/step6_run.log` — eval run log
+- `docs/06_generalization.md` — retrospective
+
+### Runtime
+
+- Colab safety-cache extraction: ~1.5 min on T4.
+- Local OOD eval: 107 sec wall.
+
+### Out of scope for Step 6 (deferred)
+
+- Multiple OOD corpora (e.g. AdvBench, MoralBench) — single-corpus signal was sufficient.
+- Step 5-style efficiency curves on the OOD distribution — write-up may flag as future work.
+- Retraining a probe on a mixed Pile + safety corpus to see if the abstract-feature gap closes — future work.
 
 ## Step 7: Write-up — PENDING
 

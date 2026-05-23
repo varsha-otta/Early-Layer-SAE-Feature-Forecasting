@@ -1,0 +1,33 @@
+[14:48:50] Safety cache: 25,600 tokens, corpus=Anthropic/hh-rlhf
+[14:48:50] BOS-masked rows: 25,500
+[14:48:50] OOD positives per feature: {9989: 597, 817: 1124, 12730: 1269, 892: 772, 1031: 1587}
+[14:48:50] --- Layer 5: loading residuals ---
+[14:48:51]   X_layer=(25500, 2304) (235 MB)
+[14:48:56]   feat=9989 (refusal       ) L 5: OOD ROC=0.7611 [0.7432, 0.7816]  OOD PR=0.0871  ID ROC=0.8913  gap_ROC=+0.1302  (4.4s, n_pos=597)
+[14:49:01]   feat=817 (deception     ) L 5: OOD ROC=0.7209 [0.7042, 0.7366]  OOD PR=0.1521  ID ROC=0.8931  gap_ROC=+0.1722  (4.6s, n_pos=1124)
+[14:49:06]   feat=12730 (ethics        ) L 5: OOD ROC=0.7547 [0.7420, 0.7671]  OOD PR=0.1670  ID ROC=0.8734  gap_ROC=+0.1186  (4.7s, n_pos=1269)
+[14:49:11]   feat=892 (sycophancy-adj) L 5: OOD ROC=0.9172 [0.9075, 0.9276]  OOD PR=0.4317  ID ROC=0.9364  gap_ROC=+0.0193  (5.0s, n_pos=772)
+[14:49:16]   feat=1031 (harm          ) L 5: OOD ROC=0.9151 [0.9098, 0.9209]  OOD PR=0.5468  ID ROC=0.9778  gap_ROC=+0.0628  (4.9s, n_pos=1587)
+[14:49:16] --- Layer 8: loading residuals ---
+[14:49:18]   X_layer=(25500, 2304) (235 MB)
+[14:49:23]   feat=9989 (refusal       ) L 8: OOD ROC=0.7945 [0.7764, 0.8137]  OOD PR=0.1119  ID ROC=0.9060  gap_ROC=+0.1116  (4.5s, n_pos=597)
+[14:49:28]   feat=817 (deception     ) L 8: OOD ROC=0.8047 [0.7908, 0.8181]  OOD PR=0.2865  ID ROC=0.9244  gap_ROC=+0.1197  (4.8s, n_pos=1124)
+[14:49:33]   feat=12730 (ethics        ) L 8: OOD ROC=0.8022 [0.7914, 0.8145]  OOD PR=0.2392  ID ROC=0.9246  gap_ROC=+0.1223  (4.9s, n_pos=1269)
+[14:49:38]   feat=892 (sycophancy-adj) L 8: OOD ROC=0.9410 [0.9335, 0.9485]  OOD PR=0.4964  ID ROC=0.9723  gap_ROC=+0.0313  (4.8s, n_pos=772)
+[14:49:43]   feat=1031 (harm          ) L 8: OOD ROC=0.9354 [0.9309, 0.9408]  OOD PR=0.6333  ID ROC=0.9779  gap_ROC=+0.0425  (4.9s, n_pos=1587)
+[14:49:43] --- Layer 12: loading residuals ---
+[14:49:45]   X_layer=(25500, 2304) (235 MB)
+[14:49:49]   feat=9989 (refusal       ) L12: OOD ROC=0.8378 [0.8176, 0.8550]  OOD PR=0.1719  ID ROC=0.9341  gap_ROC=+0.0963  (4.4s, n_pos=597)
+[14:49:54]   feat=817 (deception     ) L12: OOD ROC=0.8200 [0.8091, 0.8304]  OOD PR=0.2813  ID ROC=0.9381  gap_ROC=+0.1181  (4.7s, n_pos=1124)
+[14:49:59]   feat=12730 (ethics        ) L12: OOD ROC=0.8323 [0.8218, 0.8451]  OOD PR=0.2930  ID ROC=0.9181  gap_ROC=+0.0858  (5.1s, n_pos=1269)
+[14:50:05]   feat=892 (sycophancy-adj) L12: OOD ROC=0.9570 [0.9506, 0.9624]  OOD PR=0.5782  ID ROC=0.9874  gap_ROC=+0.0304  (5.2s, n_pos=772)
+[14:50:10]   feat=1031 (harm          ) L12: OOD ROC=0.9434 [0.9389, 0.9483]  OOD PR=0.6646  ID ROC=0.9828  gap_ROC=+0.0395  (4.9s, n_pos=1587)
+[14:50:10] --- Layer 20: loading residuals ---
+[14:50:12]   X_layer=(25500, 2304) (235 MB)
+[14:50:16]   feat=9989 (refusal       ) L20: OOD ROC=0.9869 [0.9839, 0.9891]  OOD PR=0.7730  ID ROC=0.9959  gap_ROC=+0.0091  (4.6s, n_pos=597)
+[14:50:21]   feat=817 (deception     ) L20: OOD ROC=0.9842 [0.9819, 0.9861]  OOD PR=0.8159  ID ROC=0.9969  gap_ROC=+0.0128  (4.9s, n_pos=1124)
+[14:50:26]   feat=12730 (ethics        ) L20: OOD ROC=0.9759 [0.9731, 0.9786]  OOD PR=0.7689  ID ROC=0.9930  gap_ROC=+0.0172  (4.8s, n_pos=1269)
+[14:50:32]   feat=892 (sycophancy-adj) L20: OOD ROC=0.9861 [0.9837, 0.9884]  OOD PR=0.7825  ID ROC=0.9977  gap_ROC=+0.0116  (5.1s, n_pos=772)
+[14:50:37]   feat=1031 (harm          ) L20: OOD ROC=0.9861 [0.9843, 0.9879]  OOD PR=0.8735  ID ROC=0.9972  gap_ROC=+0.0111  (5.0s, n_pos=1587)
+[14:50:37] Wrote C:\Users\varsh\OneDrive\projects\feature-precursor-detection\results\step6_ood_metrics.csv (20 rows)
+[14:50:37] Wrote C:\Users\varsh\OneDrive\projects\feature-precursor-detection\results\step6_meta.json

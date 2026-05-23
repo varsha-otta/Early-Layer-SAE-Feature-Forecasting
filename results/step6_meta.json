@@ -1,0 +1,18 @@
+{
+  "seed": 0,
+  "n_bootstrap": 200,
+  "ood_corpus": "Anthropic/hh-rlhf",
+  "ood_corpus_subset": "red-team-attempts",
+  "ood_turns": "human_only",
+  "ood_n_tokens_total": 25600,
+  "ood_n_tokens_after_bos_mask": 25500,
+  "ood_positives_per_feature": {
+    "9989": 597,
+    "817": 1124,
+    "12730": 1269,
+    "892": 772,
+    "1031": 1587
+  },
+  "step4_weights_dir": "C:\\Users\\varsh\\OneDrive\\projects\\feature-precursor-detection\\results\\step4_probe_weights",
+  "total_seconds": 107.0
+}
