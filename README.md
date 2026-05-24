@@ -6,7 +6,7 @@ Forecasting safety-relevant sparse autoencoder (SAE) features in Gemma-2-2B from
 
 Can a small classifier trained on early-layer residual stream activations predict whether a *late-layer* SAE feature - chosen to be safety-flavored (refusal, sycophancy, deception, harm-recognition, hedging) - will fire at the same token position? And: how data-efficient is this precursor probe compared to training the late-layer SAE itself?
 
-**Why this matters.**
+**Why this matters**
 
 If safety-relevant SAE features turn out to be linearly predictable from *earlier-layer* activations, two operational possibilities open up. **Early-warning monitoring**: a cheap probe at layer 5 can flag "this token will trigger a harm/refusal feature deep in the network" *before* the forward pass finishes; that is the moment you actually want to intervene, either by halting generation, steering the residual stream, or routing the prompt elsewhere. **Lightweight deployment**: running a full 16k-feature SAE at every token is expensive, but a linear probe is one matrix-vector multiply per token, trivially cheap. Together these change the cost profile of feature-based safety monitoring from "research-grade" to "deployable."
 
@@ -14,7 +14,7 @@ The data-efficiency question is the lever that makes the above practical at scal
 
 Empirical result (Step 5, Pile-10k, AUC-ROC ≥ 0.9 threshold):
 
-> Once GemmaScope's ~4B-token SAE has surfaced a layer-20 safety feature, predicting whether that feature fires from **layer-20 activations** takes ~0.9k-6.4k tokens; **about 10⁵-10⁶× less data** than the SAE itself needed. From mid-network (layer 8) the same threshold is reached in 1-50k tokens with strong feature-by-feature variance; from early layers (5) only the most surface-form features (harm, sycophancy-adj — features that fire on specific words/tokens) cross 0.9 within our 81.6k-token test budget.
+> Once GemmaScope's ~4B-token SAE has surfaced a layer-20 safety feature, predicting whether that feature fires from **layer-20 activations** takes ~0.9k-6.4k tokens; **about 10⁵-10⁶× less data** than the SAE itself needed. From mid-network (layer 8) the same threshold is reached in 1-50k tokens with strong feature-by-feature variance; from early layers (5) only the most surface-form features (harm, sycophancy-adj; i.e. features that fire on specific words/tokens) cross 0.9 within our 81.6k-token test budget.
 
 ## Approach
 
