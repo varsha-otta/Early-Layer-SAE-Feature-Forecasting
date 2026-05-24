@@ -6,9 +6,11 @@ Forecasting safety-relevant sparse autoencoder (SAE) features in Gemma-2-2B from
 
 Can a small classifier trained on early-layer residual stream activations predict whether a *late-layer* SAE feature - chosen to be safety-flavored (refusal, sycophancy, deception, harm-recognition, hedging) - will fire at the same token position? And: how data-efficient is this precursor probe compared to training the late-layer SAE itself?
 
-Headline target claim:
+**Why this matters.**
 
-> With N tokens of probe-training data, we predict feature F at layer L_late from layer L_early activations at AUC X - versus M ≫ N tokens needed for the GemmaScope SAE at L_late to surface F as a coherent feature.
+If safety-relevant SAE features turn out to be linearly predictable from *earlier-layer* activations, two operational possibilities open up. **Early-warning monitoring**: a cheap probe at layer 5 can flag "this token will trigger a harm/refusal feature deep in the network" *before* the forward pass finishes; that is the moment you actually want to intervene, either by halting generation, steering the residual stream, or routing the prompt elsewhere. **Lightweight deployment**: running a full 16k-feature SAE at every token is expensive, but a linear probe is one matrix-vector multiply per token, trivially cheap. Together these change the cost profile of feature-based safety monitoring from "research-grade" to "deployable."
+
+The data-efficiency question is the lever that makes the above practical at scale. SAEs cost billions of tokens and large-GPU compute to train; a barrier most outside teams can't clear. If a probe needs only thousands of labeled tokens to match the SAE's "did this feature fire?" judgment, then maintaining bespoke detectors for the long tail of safety-relevant concepts, retraining when a new model checkpoint or deployment distribution lands, and iterating quickly as new features are discovered all become feasible for teams without SAE-training resources. The probe also divides the SAE's one-off labeling cost across many downstream uses.
 
 Empirical result (Step 5, Pile-10k, AUC-ROC ≥ 0.9 threshold):
 
