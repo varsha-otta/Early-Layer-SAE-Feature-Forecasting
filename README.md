@@ -1,4 +1,4 @@
-# Early-Layer-SAE-Feature-Forecasting
+# Early Layer SAE Feature Forecasting (v1.0)
 
 Forecasting safety-relevant sparse autoencoder (SAE) features in Gemma-2-2B from earlier-layer activations.
 
